@@ -1,92 +1,55 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#111827"><title>MO Parks Map v2</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220"><meta name="description" content="Missouri State Parks Locator">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>MO Park Locator</title>
 <style>
-*{box-sizing:border-box}html,body,#map{height:100%;margin:0}body{font-family:system-ui;background:#111827}
-#map{z-index:1}.panel{position:fixed;z-index:1000;top:10px;left:10px;width:min(390px,calc(100% - 20px));background:#111827ee;color:#fff;padding:14px;border:1px solid #374151;border-radius:15px;box-shadow:0 8px 30px #0008}
-h1{font-size:19px;margin:0 0 4px}.sub{font-size:12px;color:#cbd5e1;margin-bottom:10px}
-input,button{background:#1f2937;color:white;border:1px solid #4b5563;border-radius:9px;padding:9px}input{width:100%}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}button{cursor:pointer}.status{font-size:12px;color:#cbd5e1;margin:9px 0}
-#list{max-height:220px;overflow:auto}.item{padding:8px 4px;border-bottom:1px solid #374151;cursor:pointer;font-size:13px}
-.details{font-size:12px}.source{font-size:10px;color:#94a3b8;margin-top:7px}.pill{display:inline-block;background:#374151;border-radius:8px;padding:2px 6px;margin:2px}
-@media(max-width:600px){#list{max-height:150px}}
+*{box-sizing:border-box}html,body,#map{height:100%;margin:0}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0b1220;color:#fff}
+#map{z-index:1}.ui{position:fixed;z-index:1000;top:10px;left:10px;width:min(410px,calc(100% - 20px));background:#0b1220ee;border:1px solid #334155;border-radius:16px;padding:13px;box-shadow:0 12px 35px #0009;backdrop-filter:blur(12px)}
+h1{font-size:19px;margin:0}.muted{font-size:11px;color:#a8b3c7}.boot{margin:8px 0;padding:8px;border-radius:9px;background:#172033;font-size:12px}.ok{color:#9fe3b1}.warn{color:#ffd27d}
+input,button{width:100%;padding:9px;border-radius:9px;border:1px solid #475569;background:#172033;color:#fff}button{cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}.tools button{font-size:11px;padding:8px}
+.search{margin-top:8px}.list{max-height:210px;overflow:auto;margin-top:7px}.item{padding:8px 4px;border-bottom:1px solid #253044;font-size:13px;cursor:pointer}.item small{display:block;color:#94a3b8;margin-top:2px}
+#admin{display:none;margin-top:9px;border-top:1px solid #334155;padding-top:9px}.adminbox{display:grid;gap:7px}
+@media(max-width:600px){.ui{top:7px;left:7px;width:calc(100vw - 14px)}.list{max-height:150px}.tools{grid-template-columns:1fr 1fr}}
 </style></head>
 <body><div id="map"></div>
-<div class="panel">
-<h1>Missouri State Parks Map</h1><div class="sub">v2 • official Missouri DNR data + public map data</div>
-<input id="search" placeholder="Search Missouri parks, sites, regions…">
-<div class="grid"><button id="locate">📍 My location</button><button id="offline">⬇ Offline help</button>
-<button id="bound">Park boundaries ✓</button><button id="trail">DNR trails layer</button>
-<button id="wild">Wild areas</button><button id="natural">Natural areas</button></div>
-<div id="status" class="status">Loading official Missouri DNR data…</div><div id="list"></div>
-</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-const DNR='https://gis.dnr.mo.gov/server/rest/services/parks/Missouri_State_Parks_Boundaries/FeatureServer/';
-const map=L.map('map').setView([38.4561,-92.2884],7);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
- attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>'}).addTo(map);
-
-let sites=[], boundaries=L.geoJSON(null,{style:{weight:2,fillOpacity:.12},onEachFeature:(f,l)=>{
- l.on('click',()=>showFeature(f,l));
-}}).addTo(map);
-let wild=L.geoJSON(null,{style:{weight:1,fillOpacity:.08}}), natural=L.geoJSON(null,{style:{weight:1,fillOpacity:.08}});
-let trailLayer=null;
-
-async function query(layer,where='1=1',fields='*'){
- const u=DNR+layer+'/query?'+new URLSearchParams({where,outFields:fields,returnGeometry:'true',outSR:'4326',f:'geojson'});
- const r=await fetch(u); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json();
-}
-async function init(){
- try{
-  const p=await query(4,'1=1','OBJECTID,LOC_NAME,PARK_ID,URL,SHORT_NAME,REGION,PARK_TYPE,GIS_ACRES');
-  sites=p.features||[]; render();
-  const b=await query(0,'1=1','LOC_NAME,PARK_ID,URL,SHORT_NAME,REGION,GIS_ACRES');
-  boundaries.addData(b);
-  status('Loaded '+sites.length+' official park/site locations and park boundaries.');
- }catch(e){console.error(e);status('DNR data request failed ('+e.message+'). The app stays usable with OpenStreetMap.')}
-}
-async function loadPoly(layer,target){
- try{const d=await query(layer);target.addData(d);status('Loaded '+(d.features?.length||0)+' additional DNR areas.')}
- catch(e){status('This DNR layer is temporarily unavailable; other layers remain active.')}
-}
-function render(){
- const q=search.value.toLowerCase().trim(), list=document.getElementById('list');list.innerHTML='';
- sites.filter(f=>{let p=f.properties||{};return !q||[p.LOC_NAME,p.SHORT_NAME,p.REGION,p.PARK_TYPE].join(' ').toLowerCase().includes(q)})
- .slice(0,150).forEach(f=>{let d=document.createElement('div');d.className='item';d.textContent=f.properties.LOC_NAME;
- d.onclick=()=>{let c=f.geometry.coordinates;map.setView([c[1],c[0]],13);let marker=L.marker([c[1],c[0]]).addTo(map);showFeature(f,marker);setTimeout(()=>map.removeLayer(marker),15000)};list.appendChild(d)})
-}
-function showFeature(f,l){
- const p=f.properties||{};l.bindPopup(`<div class="details"><b>${esc(p.LOC_NAME||'Missouri park')}</b><br>
- <span class="pill">${esc(p.PARK_TYPE||'Site')}</span><span class="pill">${esc(p.REGION||'')}</span>
- <p>Approx. acres: ${p.GIS_ACRES??'—'}</p>
- ${p.URL?'<a target="_blank" rel="noopener" href="'+esc(p.URL)+'">Official Missouri DNR page</a>':''}
- <div class="source">Official data: Missouri Department of Natural Resources, Division of State Parks.</div></div>`).openPopup();
-}
-search.oninput=render;
-bound.onclick=()=>toggle(boundaries,bound,'Park boundaries');
-wild.onclick=async()=>{if(!map.hasLayer(wild)){await loadPoly(2,wild);wild.addTo(map);wild.textContent='Wild areas ✓'}else{map.removeLayer(wild);wild.textContent='Wild areas'}};
-natural.onclick=async()=>{if(!map.hasLayer(natural)){await loadPoly(3,natural);natural.addTo(map);natural.textContent='Natural areas ✓'}else{map.removeLayer(natural);natural.textContent='Natural areas'}};
-trail.onclick=()=>{
- if(trailLayer){map.removeLayer(trailLayer);trailLayer=null;trail.textContent='DNR trails layer';return}
- // Use the DNR service as an image overlay only after a successful metadata check.
- fetch('https://gis.dnr.mo.gov/server/rest/services/parks/Trail_Advisory_Viewer/MapServer?f=json')
- .then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
- .then(meta=>{
-   trailLayer=L.tileLayer('https://gis.dnr.mo.gov/server/rest/services/parks/Trail_Advisory_Viewer/MapServer/tile/{z}/{y}/{x}',{opacity:.7,attribution:'Missouri DNR'});
-   trailLayer.addTo(map);trail.textContent='DNR trails layer ✓';status('DNR trail map enabled.')
- }).catch(()=>status('The DNR trail map returned an access error. Park data and OSM are still working.'));
-};
-function toggle(layer,btn,label){if(map.hasLayer(layer)){map.removeLayer(layer);btn.textContent=label}else{layer.addTo(map);btn.textContent=label+' ✓'}}
-locate.onclick=()=>map.locate({setView:true,maxZoom:15,enableHighAccuracy:true});
-map.on('locationfound',e=>L.circleMarker(e.latlng,{radius:8,weight:2}).addTo(map).bindPopup('Your location').openPopup());
-map.on('locationerror',()=>status('Location permission is unavailable.'));
-offline.onclick=()=>alert('Offline mode is planned for v3. For now, install the PWA after hosting it and use a supported offline map package when available.');
-function status(s){document.getElementById('status').textContent=s}
+<section class="ui"><h1>MO Park Locator <span id="mode" class="muted">• starting</span></h1>
+<div class="muted">Missouri State Parks • low-signal ready</div><div id="boot" class="boot">Booting map system…</div>
+<input id="search" class="search" placeholder="Park, historic site, region…">
+<div class="grid"><button id="loc">📍 Location</button><button id="offline">📡 Low-signal</button><button id="parks">Parks ✓</button><button id="trails">All DNR trails</button></div>
+<div class="tools"><button id="state">State view</button><button id="reload">Refresh</button><button id="adminBtn">Admin</button></div>
+<div id="list" class="list"></div>
+<div id="admin"><div class="adminbox"><input id="adminKey" type="password" placeholder="Admin key"><button id="login">Open admin</button>
+<div id="adminPanel" style="display:none"><button id="sync">Check for updates</button><button id="clearCache">Clear local cache</button><div id="adminStatus" class="muted"></div></div></div></div>
+<div class="muted">Park data: Missouri DNR. Trail map: Missouri DNR public trail service. Basemap: OpenStreetMap.</div></section>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
+const DB='mo-parks-v3',KEY='parks-v3-data',API='/api/parks';let db,sites=[],parkLayer,trailLayer,low=false,token='';
+const map=L.map('map',{zoomControl:true}).setView([38.4561,-92.2884],7);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+const $=id=>document.getElementById(id);
+function boot(t,c=''){ $('boot').className='boot '+c;$('boot').textContent=t }
 function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-init();
+function openDB(){return new Promise((ok,no)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>{db=r.result;ok()};r.onerror=()=>no(r.error)})}
+function get(k){return new Promise((ok,no)=>{let r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+function put(k,v){return new Promise((ok,no)=>{let r=db.transaction('kv','readwrite').objectStore('kv').put(v,k);r.onsuccess=ok;r.onerror=()=>no(r.error)})}
+async function start(){boot('Opening local park database…');await openDB();let c=await get(KEY);if(c){sites=c.features||[];draw();render();boot('Cached Missouri park data loaded.','ok')}if(navigator.onLine&&!low)await refresh();else if(!c)boot('Connect once to download the park package.','warn')}
+async function refresh(){try{boot('Loading official Missouri park data…');let r=await fetch(API,{cache:'no-store'});if(!r.ok)throw Error(r.status);let d=await r.json();sites=d.features||[];await put(KEY,d);draw();render();boot('Ready • '+sites.length+' park/site records cached locally.','ok')}catch(e){boot('Using cached data; live update unavailable.','warn')}}
+function draw(){if(parkLayer)map.removeLayer(parkLayer);parkLayer=L.geoJSON({type:'FeatureCollection',features:sites},{pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,weight:2,fillOpacity:.9}),onEachFeature:(f,l)=>l.on('click',()=>popup(f,l))}).addTo(map)}
+function popup(f,l){let p=f.properties||{};l.bindPopup('<b>'+esc(p.LOC_NAME)+'</b><br>'+esc(p.PARK_TYPE||'')+'<br>Region: '+esc(p.REGION||'')+'<br>Approx. acres: '+esc(p.GIS_ACRES??'—')+(p.URL?'<br><a target="_blank" rel="noopener" href="'+esc(p.URL)+'">Official park page</a>':'')).openPopup()}
+function render(){let q=$('search').value.toLowerCase().trim(),el=$('list');el.innerHTML='';sites.filter(f=>{let p=f.properties||{};return !q||[p.LOC_NAME,p.SHORT_NAME,p.REGION,p.PARK_TYPE].join(' ').toLowerCase().includes(q)}).slice(0,200).forEach(f=>{let p=f.properties||{},d=document.createElement('div');d.className='item';d.innerHTML=esc(p.LOC_NAME||p.SHORT_NAME)+'<small>'+esc(p.PARK_TYPE||'')+' • '+esc(p.REGION||'')+'</small>';d.onclick=()=>{let c=f.geometry.coordinates;map.setView([c[1],c[0]],14);let m=L.marker([c[1],c[0]]).addTo(map);popup(f,m);setTimeout(()=>map.removeLayer(m),15000)};el.appendChild(d)})}
+$('search').oninput=render;
+$('parks').onclick=()=>{if(map.hasLayer(parkLayer)){map.removeLayer(parkLayer);$('parks').textContent='Parks'}else{parkLayer.addTo(map);$('parks').textContent='Parks ✓'}};
+$('trails').onclick=()=>{if(trailLayer){map.removeLayer(trailLayer);trailLayer=null;$('trails').textContent='All DNR trails';return}trailLayer=L.tileLayer('https://gis.dnr.mo.gov/server/rest/services/sphs_trails/SPHS_trails_public/MapServer/tile/{z}/{y}/{x}',{opacity:.8,minZoom:7,maxZoom:19,attribution:'Missouri DNR public trails map'}).addTo(map);$('trails').textContent='All DNR trails ✓';boot('Official DNR trail map enabled.','ok')};
+$('loc').onclick=()=>map.locate({setView:true,maxZoom:15,enableHighAccuracy:true});
+map.on('locationfound',e=>L.circleMarker(e.latlng,{radius:8,weight:2}).addTo(map).bindPopup('Your location').openPopup());
+map.on('locationerror',()=>boot('Location unavailable; map still works.','warn'));
+$('offline').onclick=()=>{low=!low;$('mode').textContent=low?'• low-signal':'• online';boot(low?'Low-signal mode: cached data preferred.':'Online mode: live refresh allowed.',low?'warn':'ok')};
+$('reload').onclick=refresh;$('state').onclick=()=>map.setView([38.4561,-92.2884],7);
+$('adminBtn').onclick=()=>{$('admin').style.display=$('admin').style.display==='block'?'none':'block'};
+$('login').onclick=async()=>{token=$('adminKey').value;let r=await fetch('/api/admin',{method:'POST',headers:{Authorization:'Bearer '+token}});$('adminPanel').style.display=r.ok?'block':'none';$('adminStatus').textContent=r.ok?'Admin enabled.':'Authentication failed.'};
+$('sync').onclick=async()=>{let r=await fetch('/api/admin',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:'sync'})});$('adminStatus').textContent=r.ok?'DNR source reachable. Use Refresh to update the local package.':'DNR update check failed.'};
+$('clearCache').onclick=()=>{indexedDB.deleteDatabase(DB);location.reload()};window.addEventListener('online',()=>{if(!low)refresh()});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});start();
 </script></body></html>
