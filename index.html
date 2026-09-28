@@ -64,7 +64,26 @@ input,select,textarea,button{font:inherit;border:1px solid #ffffff1b;border-radi
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const $=id=>document.getElementById(id),map=L.map('map',{zoomControl:true,preferCanvas:true,fadeAnimation:false}).setView([39.5,-98.35],5);
+const $=id=>document.getElementById(id);
+const map=L.map('map',{zoomControl:true,preferCanvas:true,fadeAnimation:false}).setView([39.5,-98.35],5);
+async function handleAuthRedirect(){
+ try{
+  const hash=window.location.hash;
+  if(!hash.includes('access_token='))return false;
+  if(!supabaseClient)return false;
+  const p=new URLSearchParams(hash.slice(1));
+  const access=p.get('access_token'),refresh=p.get('refresh_token');
+  if(access&&refresh){
+   const r=await supabaseClient.auth.setSession({access_token:access,refresh_token:refresh});
+   if(r.error)throw r.error;
+  }
+  history.replaceState({},document.title,window.location.pathname+window.location.search);
+  return true;
+ }catch(e){
+  status('Email verification could not complete on this device. Please sign in again.','error');
+  return false;
+ }
+}
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,maxNativeZoom:19,keepBuffer:4,updateWhenIdle:true,updateWhenZooming:false,attribution:'© OpenStreetMap contributors'}).addTo(map);
 let trailLayer=L.layerGroup().addTo(map),parkLayer=L.layerGroup().addTo(map),reportLayer=L.layerGroup().addTo(map),routeLayer=L.layerGroup().addTo(map),trailData=[],parkData=[],gpsMarker=null,accuracyCircle=null,watchId=null,currentPosition=null,supabaseClient=null,currentUser=null,lastTrailFetch='',lastParkFetch='',destination=null,routeData=null,routeMode='driving',navigationActive=false,lastRouteAt=0,geocodeBusy=false,accountProfiles=[],activeProfile=null,appMode='gps',trailActivityTimer=null,trailActivitySession=localStorage.getItem('trailNavigatorActivitySession')||crypto.randomUUID();
 const DEVICE_KEY=localStorage.getItem('trailNavigatorDeviceKey')||crypto.randomUUID();
@@ -178,7 +197,7 @@ async function updateTrailActivity(){if(appMode!=='trails'||!supabaseClient||!cu
 async function touchTrailActivity(){if(appMode!=='trails'||!currentPosition||!supabaseClient||!$('shareTrailActivity').checked||!currentUser)return;try{await supabaseClient.rpc('touch_trail_activity',{p_session_id:trailActivitySession,p_lat:currentPosition.lat,p_lon:currentPosition.lon})}catch(e){}await updateTrailActivity()}
 function stopTrailActivity(){if(trailActivityTimer){clearInterval(trailActivityTimer);trailActivityTimer=null}if($('trailActivity'))$('activityText').textContent='Trail activity sharing is off.'}
 function startTrailActivity(){stopTrailActivity();if(appMode==='trails'&&$('shareTrailActivity').checked){touchTrailActivity();trailActivityTimer=setInterval(touchTrailActivity,30000)}}function startGPS(){if(!navigator.geolocation){status('GPS is not available in this browser.','error');return}if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;$('gpsBtn').textContent='📍 Start GPS';status('GPS tracking stopped.','warn');stopTrailActivity();return}$('gpsBtn').textContent='⏹ Stop GPS';status('Waiting for GPS…');navigator.geolocation.getCurrentPosition(()=>{},()=>{}, {enableHighAccuracy:true,timeout:15000});watchId=navigator.geolocation.watchPosition(p=>{currentPosition={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};if(!gpsMarker)gpsMarker=L.marker([currentPosition.lat,currentPosition.lon],{icon:L.divIcon({className:'gpsdot',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);else gpsMarker.setLatLng([currentPosition.lat,currentPosition.lon]);if(!accuracyCircle)accuracyCircle=L.circle([currentPosition.lat,currentPosition.lon],{radius:currentPosition.accuracy,color:'#28a8ff',fillOpacity:.08,weight:1}).addTo(map);else accuracyCircle.setLatLng([currentPosition.lat,currentPosition.lon]).setRadius(currentPosition.accuracy);if(navigationActive){map.setView([currentPosition.lat,currentPosition.lon],Math.max(map.getZoom(),16),{animate:true});if(destination)calculateRoute();updateNextTurn()}else{const near=nearestTrail(currentPosition.lat,currentPosition.lon);status('GPS connected • ±'+Math.round(currentPosition.accuracy)+' m'+(near?' • '+near.name+' ('+near.distance+' m)':''))}},e=>status('GPS unavailable: '+e.message,'error'),{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
-async function setupAuth(){try{const r=await fetch('/api/config',{cache:'no-store'}),c=await r.json();if(c.supabaseUrl&&c.supabaseKey&&window.supabase){supabaseClient=window.supabase.createClient(c.supabaseUrl,c.supabaseKey);const s=await supabaseClient.auth.getSession();currentUser=s.data.session?.user||null;updateAuth();supabaseClient.auth.onAuthStateChange((event,session)=>{currentUser=session?.user||null;updateAuth()})}else status('Guest mode • add Supabase settings to enable accounts.','warn')}catch(e){status('Guest mode • account service is not configured yet.','warn')}}
+async function setupAuth(){try{const r=await fetch('/api/config',{cache:'no-store'}),c=await r.json();if(c.supabaseUrl&&c.supabaseKey&&window.supabase){supabaseClient=window.supabase.createClient(c.supabaseUrl,c.supabaseKey);await handleAuthRedirect();const s=await supabaseClient.auth.getSession();currentUser=s.data.session?.user||null;updateAuth();supabaseClient.auth.onAuthStateChange((event,session)=>{currentUser=session?.user||null;updateAuth()})}else status('Guest mode • add Supabase settings to enable accounts.','warn')}catch(e){status('Guest mode • account service is not configured yet.','warn')}}
 function updateAuth(){
  $('welcomeScreen').classList.toggle('hidden',!!currentUser);
  if(currentUser){
