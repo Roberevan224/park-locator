@@ -102,3 +102,66 @@ insert into public.account_profiles(account_id,display_name,avatar)
 select p.id,p.display_name,'🧭'
 from public.profiles p
 where not exists(select 1 from public.account_profiles ap where ap.account_id=p.id);
+
+-- Anonymous, privacy-preserving trail activity.
+-- Stores only a coarse ~1.1 km location cell and an anonymous session id.
+create table if not exists public.trail_activity (
+ id uuid primary key default gen_random_uuid(),
+ session_id uuid not null unique,
+ cell_lat double precision not null,
+ cell_lon double precision not null,
+ last_seen_at timestamptz not null default now()
+);
+
+alter table public.trail_activity enable row level security;
+revoke all on public.trail_activity from anon, authenticated;
+
+create or replace function public.touch_trail_activity(
+ p_session_id uuid,
+ p_lat double precision,
+ p_lon double precision
+) returns void
+language plpgsql
+security definer
+set search_path=public
+as $$
+begin
+ if auth.uid() is null then
+   raise exception 'Authentication required';
+ end if;
+ if p_lat < -90 or p_lat > 90 or p_lon < -180 or p_lon > 180 then
+   raise exception 'Invalid location';
+ end if;
+ delete from public.trail_activity where session_id=p_session_id;
+ insert into public.trail_activity(session_id,cell_lat,cell_lon,last_seen_at)
+ values(
+   p_session_id,
+   round(p_lat::numeric,2)::double precision,
+   round(p_lon::numeric,2)::double precision,
+   now()
+ );
+end;
+$$;
+
+create or replace function public.get_trail_activity(
+ p_lat double precision,
+ p_lon double precision
+) returns table(people_count bigint)
+language sql
+security definer
+set search_path=public
+as $$
+ select count(*)
+ from public.trail_activity
+ where last_seen_at > now() - interval '5 minutes'
+   and cell_lat between round(p_lat::numeric,2)::double precision - 0.02
+                       and round(p_lat::numeric,2)::double precision + 0.02
+   and cell_lon between round(p_lon::numeric,2)::double precision - 0.02
+                       and round(p_lon::numeric,2)::double precision + 0.02;
+$$;
+
+grant execute on function public.touch_trail_activity(uuid,double precision,double precision) to authenticated;
+grant execute on function public.get_trail_activity(double precision,double precision) to authenticated;
+
+create index if not exists trail_activity_seen_idx on public.trail_activity(last_seen_at);
+create index if not exists trail_activity_cell_idx on public.trail_activity(cell_lat,cell_lon);
