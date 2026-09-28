@@ -182,6 +182,7 @@ async function setupAuth(){try{const r=await fetch('/api/config',{cache:'no-stor
 function updateAuth(){
  $('welcomeScreen').classList.toggle('hidden',!!currentUser);
  if(currentUser){
+  if(localStorage.getItem('trailNavigatorPendingSetup')==='1'){localStorage.removeItem('trailNavigatorPendingSetup');setTimeout(openDeviceSetup,350)}
   const name=(activeProfile?.display_name||currentUser.user_metadata?.display_name||currentUser.email||'Account').slice(0,14);
   $('accountBtn').textContent=name;$('loginBtn').textContent=name;$('signIn').classList.add('hidden');$('signUp').classList.add('hidden');$('signOut').classList.remove('hidden');
   $('displayName').value=currentUser.user_metadata?.display_name||'';
@@ -235,6 +236,7 @@ function detectDeviceName(){
  return 'Web device';
 }
 function openDeviceSetup(){
+ document.body.classList.toggle('mobile-device',/iphone|ipad|android|mobile/i.test(navigator.userAgent));
  const current=localStorage.getItem(DEVICE_NAME_KEY)||detectDeviceName(),mode=localStorage.getItem(DEVICE_MODE_KEY)||'both';
  $('deviceName').value=current;document.querySelectorAll('.setup-option').forEach(b=>b.classList.toggle('active',b.dataset.usage===mode));$('deviceInfo').textContent='Device ID: '+DEVICE_KEY.slice(0,8)+'…';
  $('deviceModal').classList.add('show');
@@ -264,6 +266,7 @@ async function auth(mode){
  const r=mode==='signup'?await supabaseClient.auth.signUp({email,password,options:{data:{display_name:display},emailRedirectTo:window.location.origin+'/'} }):await supabaseClient.auth.signInWithPassword({email,password});
  if(r.error){$('authMsg').textContent=r.error.message;return}
  $('authMsg').textContent=mode==='signup'?'Account created. Check your email to verify your account.':'Logged in.';
+ if(mode==='signup')localStorage.setItem('trailNavigatorPendingSetup','1');
  if(mode==='signup'&&!r.data?.session)$('resendCode').classList.remove('hidden');
  if(r.data?.session&&mode==='signup')setTimeout(()=>{closeModal('accountModal');openDeviceSetup()},500);else if(mode==='signin')setTimeout(()=>closeModal('accountModal'),500)
 }
