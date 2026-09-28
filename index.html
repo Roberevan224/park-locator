@@ -251,7 +251,7 @@ async function auth(mode){
  if(!supabaseClient){$('authMsg').textContent='Accounts are not configured on this deployment yet.';return}
  const email=$('email').value.trim(),password=$('password').value,display=$('displayName').value.trim()||'Trail Navigator';
  if(!email||!password){$('authMsg').textContent='Enter an email and password.';return}
- const r=mode==='signup'?await supabaseClient.auth.signUp({email,password,options:{data:{display_name:display}}}):await supabaseClient.auth.signInWithPassword({email,password});
+ const r=mode==='signup'?await supabaseClient.auth.signUp({email,password,options:{data:{display_name:display},emailRedirectTo:window.location.origin+'/'} }):await supabaseClient.auth.signInWithPassword({email,password});
  if(r.error){$('authMsg').textContent=r.error.message;return}
  $('authMsg').textContent=mode==='signup'?'Account created. Check your email if confirmation is enabled.':'Logged in.';
  setTimeout(()=>{closeModal('accountModal');if(mode==='signup')openDeviceSetup()},700)
