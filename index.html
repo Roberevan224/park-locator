@@ -11,7 +11,7 @@ h1{font-size:19px;margin:0}.muted{font-size:11px;color:#a8b3c7}.boot{margin:8px 
 input,button{width:100%;padding:9px;border-radius:9px;border:1px solid #475569;background:#172033;color:#fff}button{cursor:pointer}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}.tools button{font-size:11px;padding:8px}
 .search{margin-top:8px}.list{max-height:210px;overflow:auto;margin-top:7px}.item{padding:8px 4px;border-bottom:1px solid #253044;font-size:13px;cursor:pointer}.item small{display:block;color:#94a3b8;margin-top:2px}
-#admin{display:none;margin-top:9px;border-top:1px solid #334155;padding-top:9px}#admin.secret{display:block}.adminbox{display:grid;gap:7px}
+.adminbox{display:grid;gap:7px}
 @media(max-width:600px){.ui{top:7px;left:7px;width:calc(100vw - 14px)}.list{max-height:150px}.tools{grid-template-columns:1fr 1fr}}
 </style></head>
 <body><div id="map"></div>
@@ -21,8 +21,6 @@ input,button{width:100%;padding:9px;border-radius:9px;border:1px solid #475569;b
 <div class="grid"><button id="loc">📍 Location</button><button id="offline">📡 Low-signal</button><button id="parks">Parks ✓</button><button id="trails">All DNR trails</button></div>
 <div class="tools"><button id="state">State view</button><button id="reload">Refresh</button><button id="infoBtn">Info</button></div>
 <div id="list" class="list"></div>
-<div id="admin"><div class="adminbox"><input id="adminKey" type="password" placeholder="Admin key"><button id="login">Open admin</button>
-<div id="adminPanel" style="display:none"><button id="sync">Check for updates</button><button id="clearCache">Clear local cache</button><div id="adminStatus" class="muted"></div></div></div></div>
 <div class="muted">Park data: Missouri DNR. Trail map: Missouri DNR public trail service. Basemap: OpenStreetMap.</div></section>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
 const DB='mo-parks-v3',KEY='parks-v3-data',API='/api/parks';let db,sites=[],parkLayer,trailLayer,low=false,token='';
@@ -47,13 +45,7 @@ map.on('locationfound',e=>L.circleMarker(e.latlng,{radius:8,weight:2}).addTo(map
 map.on('locationerror',()=>boot('Location unavailable; map still works.','warn'));
 $('offline').onclick=()=>{low=!low;$('mode').textContent=low?'• low-signal':'• online';boot(low?'Low-signal mode: cached data preferred.':'Online mode: live refresh allowed.',low?'warn':'ok')};
 $('reload').onclick=refresh;$('state').onclick=()=>map.setView([38.4561,-92.2884],7);
-let adminTaps=0,adminTapTimer;
-function revealAdmin(){adminTaps=0;$('admin').classList.toggle('secret');if($('admin').classList.contains('secret')){$('adminKey').focus();boot('Private admin panel opened.','warn')}}
-$('infoBtn').onclick=()=>boot('Official Missouri DNR park data with local low-signal caching.','ok');
-$('mode').addEventListener('click',()=>{adminTaps++;clearTimeout(adminTapTimer);adminTapTimer=setTimeout(()=>adminTaps=0,1500);if(adminTaps>=7)revealAdmin()});
-document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='a'){e.preventDefault();revealAdmin()}});
-$('login').onclick=async()=>{token=$('adminKey').value;let r=await fetch('/api/admin',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}});let d=await r.json().catch(()=>({}));$('adminPanel').style.display=r.ok?'block':'none';$('adminStatus').textContent=r.ok?'Admin enabled.':(d.error||'Authentication failed.');};
-$('sync').onclick=async()=>{let r=await fetch('/api/admin',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:'sync'})});$('adminStatus').textContent=r.ok?'DNR source reachable. Use Refresh to update the local package.':'DNR update check failed.'};
+
 $('clearCache').onclick=()=>{indexedDB.deleteDatabase(DB);location.reload()};window.addEventListener('online',()=>{if(!low)refresh()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});start();
 </script></body></html>
