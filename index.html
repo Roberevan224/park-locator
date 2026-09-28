@@ -11,6 +11,11 @@
 *{box-sizing:border-box}html,body,#map{height:100%;margin:0}body{font-family:Roboto,Google Sans,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0f0d;color:var(--text);overflow:hidden}
 #map{background:#101512}.leaflet-tile{filter:invert(.86) hue-rotate(180deg) brightness(.82) contrast(1.12) saturate(.62)}.leaflet-control-attribution{font-size:10px;background:#1118!important;color:#d4d9d5!important}.leaflet-control-attribution a{color:#c9d7cf!important}
 .app{position:fixed;z-index:1000;top:0;left:0;width:430px;height:100vh;max-height:100vh;display:flex;flex-direction:column;background:var(--surface);border-right:1px solid #ffffff18;box-shadow:18px 0 45px #0007;backdrop-filter:blur(18px);overflow:hidden;transition:transform .25s ease,opacity .2s ease}.app.nav-hidden{transform:translateX(-105%);opacity:0;pointer-events:none}.nav-show{position:fixed;z-index:1200;top:18px;left:18px;width:48px;height:48px;border-radius:50%;border:1px solid #ffffff2b;background:#151a17ee;color:#fff;box-shadow:0 8px 25px #0009;display:none;align-items:center;justify-content:center;font-size:22px}.nav-show.show{display:flex}.nav-show:hover{background:#2a302c}
+.map-controls{position:fixed;z-index:1100;top:18px;left:18px;display:flex;gap:8px;align-items:flex-start}.map-search{display:flex;align-items:center;width:min(430px,calc(100vw - 160px));height:52px;background:#fffffff2;border:1px solid #ffffff55;border-radius:28px;box-shadow:0 6px 24px #0006;overflow:hidden;color:#4a514d}.map-search span{font-size:25px;padding-left:16px}.map-search input{height:100%;border:0!important;background:transparent!important;color:#202421!important;padding:0 10px!important;font-size:16px;outline:none}.map-search button{height:38px;min-width:48px;margin-right:7px;border:0;background:var(--green);color:#16200f;border-radius:20px;font-weight:700;padding:0 14px}.map-actions{display:flex;gap:7px}.map-actions button{width:52px;height:52px;border-radius:50%;padding:0;background:#171c19ee;border:1px solid #ffffff2b;color:#fff;font-size:21px;box-shadow:0 6px 24px #0007}.map-actions button:hover{background:#29312c}.map-mode-badge{position:fixed;z-index:1100;left:18px;bottom:22px;padding:9px 13px;border-radius:18px;background:#171c19e8;border:1px solid #ffffff20;color:#e8ede9;font-size:11px;box-shadow:0 5px 18px #0006}
+.app.nav-hidden+.drawer-backdrop{}
+body.map-first .app{transform:translateX(-105%);opacity:0;pointer-events:none}
+@media(max-width:600px){.map-controls{top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;display:block}.map-search{width:100%;height:54px}.map-actions{margin-top:8px;justify-content:flex-end}.map-actions button{width:48px;height:48px}.map-mode-badge{left:10px;bottom:calc(10px + env(safe-area-inset-bottom));}.map-search input{font-size:15px}.nav-show{top:calc(78px + env(safe-area-inset-top));left:auto;right:10px}}
+
 .header{display:flex;align-items:center;gap:10px;padding:14px 15px 10px;border-bottom:0}.voice-btn{width:40px!important;height:40px!important;padding:0!important;border-radius:50%!important;background:#202722!important;border:1px solid #ffffff20!important;color:#e8ede9!important;font-size:18px!important}.voice-btn.listening{background:#8ab4f8!important;color:#07111b!important;box-shadow:0 0 0 5px #8ab4f833}.voice-status{font-size:10px;color:var(--muted);margin:5px 3px 8px;min-height:12px}.sidebar-grab{display:none}.menu-btn{width:40px!important;height:40px;padding:0!important;border:1px solid #ffffff18!important;border-radius:50%!important;background:#1b211ef0!important;color:#e8ede9!important;font-size:21px!important;line-height:1}.menu-btn:hover{background:#2a302c!important}.logo{width:42px;height:42px;border-radius:50%;background:#202720;padding:4px}.brand{min-width:0;flex:1}.brand b{display:block;font-size:16px;font-weight:600;letter-spacing:.1px}.brand span{font-size:10px;color:var(--muted)}
 .account{width:36px!important;height:36px;padding:0!important;border:1px solid #ffffff20!important;border-radius:50%!important;background:#1b211ef0!important;color:#dfe5e1!important;font-size:0!important;position:relative}.account:hover{background:#272e29!important}.account#loginBtn::after{content:"↪";font-size:16px}.account#syncBtn::after{content:"↻";font-size:17px}.account#accountBtn::after{content:"●";font-size:11px}
 .content{padding:6px 12px 10px;overflow:auto}.status{padding:8px 12px;border-radius:12px;background:#202620;color:#cfe7b8;font-size:11px;margin:2px 0 8px;border:1px solid #ffffff0d}.status.warn{color:#f4d28b;background:#28251c}.status.error{color:#f6aaa5;background:#2b211f}
@@ -35,9 +40,19 @@ input,select,textarea,button{font:inherit;border:1px solid #ffffff1b;border-radi
 </style>
 </head>
 <body>
-<div id="map"></div><button id="navShow" class="nav-show" aria-label="Show navigation menu">☰</button>
+<div id="map"></div>
+<div id="mapControls" class="map-controls">
+  <div class="map-search"><span>⌕</span><input id="mapSearch" placeholder="Search or navigate"><button id="mapSearchBtn">Go</button></div>
+  <div class="map-actions">
+    <button id="mapMenuBtn" aria-label="Open navigation">☰</button>
+    <button id="mapLocateBtn" aria-label="My location">⌖</button>
+    <button id="mapTrailsBtn" aria-label="Show trails">🥾</button>
+  </div>
+</div>
+<div id="mapModeBadge" class="map-mode-badge">📍 GPS</div>
+<button id="navShow" class="nav-show" aria-label="Show navigation menu">☰</button>
 <div id="welcomeScreen" class="welcome"><div class="welcome-card"><img class="welcome-logo" src="/logo.svg"><h1>Trail Navigator USA</h1><p>Nationwide GPS navigation and trail discovery, with device setup and account sync.</p><div class="welcome-actions"><button type="button" id="welcomeSignIn">Sign in</button><button type="button" id="welcomeSignUp" class="primary">Create account</button></div><div class="hint" style="margin-top:14px">You can continue as a guest after closing this screen.</div></div></div>
-<section id="app" class="app">
+<section id="app" class="app nav-hidden">
 <header class="header"><button id="menuBtn" class="menu-btn" aria-label="Hide navigation menu" aria-expanded="false">‹</button><img class="logo" src="/logo.svg"><div class="brand"><b>Trail Navigator USA</b><span>Explore • Navigate • Report • Discover</span></div><button id="loginBtn" class="account" aria-label="Login">Login</button><button id="syncBtn" class="account" aria-label="Sync">↻</button><button id="accountBtn" class="account" aria-label="Account">Account</button><button id="voiceBtn" class="voice-btn" aria-label="Voice assistant">🎙️</button></header>
 <div class="sidebar-grab"></div><div class="content">
 <div id="voiceStatus" class="voice-status">Voice assistant ready</div><div id="status" class="status">Starting Trail Navigator…</div><div class="mode-switch"><button id="gpsModeBtn" class="active">📍 GPS & Navigation</button><button id="trailModeBtn">🥾 Trails</button></div><div id="modeHelp" class="mode-help">Normal everyday navigation with your current location, destinations, routes and turn guidance.</div>
@@ -235,7 +250,15 @@ function openDrawer(){ $('appDrawer').classList.add('show'); $('drawerBackdrop')
 function closeDrawer(){ $('appDrawer').classList.remove('show'); $('drawerBackdrop').classList.remove('show'); $('menuBtn').setAttribute('aria-expanded','false') }
 function toggleDrawer(){if($('appDrawer').classList.contains('show')){closeDrawer();return}hideNavigation()}
 function hideNavigation(){closeDrawer();$('app').classList.add('nav-hidden');$('navShow').classList.add('show');$('menuBtn').setAttribute('aria-label','Show navigation menu')}
-function showNavigation(){ $('app').classList.remove('nav-hidden'); $('navShow').classList.remove('show'); $('menuBtn').setAttribute('aria-label','Hide navigation menu')}
+function showNavigation(){ $('app').classList.remove('nav-hidden'); $('navShow').classList.remove('show'); $('menuBtn').setAttribute('aria-label','Hide navigation menu') }
+function syncMapModeUI(){
+ const badge=$('mapModeBadge'); if(badge) badge.textContent=appMode==='gps'?'📍 GPS & Navigation':'🥾 Trails';
+}
+function mapSearch(){
+ const q=$('mapSearch')?.value.trim(); if(!q)return;
+ $('search').value=q; geocodeDestination();
+}
+
 function setMapTheme(enabled){
  darkMap=enabled;localStorage.setItem('trailNavigatorDarkMap',enabled?'1':'0');
  const tiles=document.querySelector('.leaflet-tile');
@@ -260,7 +283,7 @@ function drawerAction(action){
  if(action==='device')openDeviceSetup();
  if(action==='about')alert('Trail Navigator USA\n\nNationwide GPS navigation, trail discovery, park mapping and privacy-preserving obstruction reporting.');
 }
-function setAppMode(mode){appMode=mode;const gps=mode==='gps';$('gpsModeBtn').classList.toggle('active',gps);$('trailModeBtn').classList.toggle('active',!gps);$('modeHelp').textContent=gps?'Normal everyday navigation with your current location, destinations, routes and turn guidance.':'Trail mode focuses on mapped footpaths, trail discovery, walking guidance and anonymous nearby trail activity.';$('routePanel').classList.toggle('hidden',gps?!(!$('routePanel').classList.contains('hidden')):false);if(gps){$('trailActivity').classList.add('hidden');stopTrailActivity();setPanel('map');status('GPS mode • everyday navigation ready.')}else{$('trailActivity').classList.remove('hidden');setPanel('trails');loadTrails();if(currentPosition)updateTrailActivity();status('Trail mode • looking for nearby mapped trails.')}}
+function setAppMode(mode){appMode=mode;const gps=mode==='gps';$('gpsModeBtn').classList.toggle('active',gps);$('trailModeBtn').classList.toggle('active',!gps);$('modeHelp').textContent=gps?'Normal everyday navigation with your current location, destinations, routes and turn guidance.':'Trail mode focuses on mapped footpaths, trail discovery, walking guidance and anonymous nearby trail activity.';$('routePanel').classList.toggle('hidden',gps?!(!$('routePanel').classList.contains('hidden')):false);if(gps){$('trailActivity').classList.add('hidden');stopTrailActivity();setPanel('map');status('GPS mode • everyday navigation ready.')}else{$('trailActivity').classList.remove('hidden');setPanel('trails');loadTrails();if(currentPosition)updateTrailActivity();status('Trail mode • looking for nearby mapped trails.')}syncMapModeUI()}
 async function updateTrailActivity(){if(appMode!=='trails'||!supabaseClient||!currentPosition)return;try{const {data,error}=await supabaseClient.rpc('get_trail_activity',{p_lat:currentPosition.lat,p_lon:currentPosition.lon});if(error)throw error;const count=Number(data?.[0]?.people_count||0);$('activityText').textContent=count?count+' anonymous hiker'+(count===1?'':'s')+' nearby':'No shared activity nearby.'}catch(e){$('activityText').textContent='Trail activity is unavailable right now.'}}
 async function touchTrailActivity(){if(appMode!=='trails'||!currentPosition||!supabaseClient||!$('shareTrailActivity').checked||!currentUser)return;try{await supabaseClient.rpc('touch_trail_activity',{p_session_id:trailActivitySession,p_lat:currentPosition.lat,p_lon:currentPosition.lon})}catch(e){}await updateTrailActivity()}
 function stopTrailActivity(){if(trailActivityTimer){clearInterval(trailActivityTimer);trailActivityTimer=null}if($('trailActivity'))$('activityText').textContent='Trail activity sharing is off.'}
@@ -370,7 +393,13 @@ function closeModal(id){$(id).classList.remove('show')}
 async function loadReports(){if(!supabaseClient){$('reportList').innerHTML='<div class="hint">Connect the account database to load reports.</div>';return}const b=map.getBounds(),lat=(b.getSouth()+b.getNorth())/2,lon=(b.getWest()+b.getEast())/2,span=Math.max(b.getNorth()-b.getSouth(),b.getEast()-b.getWest()),{data,error}=await supabaseClient.from('obstruction_reports').select('id,latitude,longitude,type,description,status,created_at').gte('latitude',lat-span).lte('latitude',lat+span).gte('longitude',lon-span).lte('longitude',lon+span).order('created_at',{ascending:false}).limit(100);if(error){$('reportList').innerHTML='<div class="hint">Reports could not be loaded.</div>';return}reportLayer.clearLayers();const el=$('reportList');el.innerHTML='';(data||[]).forEach(r=>{L.circleMarker([r.latitude,r.longitude],{radius:8,color:'#ff5c62',fillColor:'#ff5c62',fillOpacity:.85,weight:2}).bindPopup('<b>Trail obstruction</b><br>'+esc(r.type)+'<br>'+esc(r.description||'No description')+'<br><small>'+esc(r.status)+'</small>').addTo(reportLayer);const d=document.createElement('div');d.className='item';d.innerHTML='<b>'+esc(r.type)+'</b><small>'+esc(r.description||'No description')+' • '+esc(r.status)+'</small>';el.appendChild(d)});if(!data?.length)el.innerHTML='<div class="hint">No obstruction reports are mapped in this area.</div>'}
 async function submitReport(){if(!currentUser){$('reportMsg').textContent='Sign in first to submit an obstruction report.';return}if(!currentPosition){$('reportMsg').textContent='Start GPS first so the report can use your current trail position.';return}const type=$('obType').value,description=$('obDesc').value.trim(),lat=Math.round(currentPosition.lat*1000)/1000,lon=Math.round(currentPosition.lon*1000)/1000,{error}=await supabaseClient.from('obstruction_reports').insert({user_id:currentUser.id,profile_id:activeProfile?.id||null,latitude:lat,longitude:lon,type,description});if(error){$('reportMsg').textContent=error.message;return}$('reportMsg').textContent='Report submitted.';$('obDesc').value='';await loadReports();setTimeout(()=>closeModal('reportModal'),800)}
 map.on('moveend',()=>{if(map.getZoom()>=11)loadTrails();if(map.getZoom()>=9)loadParks();if(!$('panelReports').classList.contains('hidden'))loadReports()});
-$('menuBtn').onclick=toggleDrawer;$('navShow').onclick=showNavigation;$('voiceBtn').onclick=toggleVoice;$('drawerClose').onclick=closeDrawer;$('drawerBackdrop').onclick=closeDrawer;
+$('menuBtn').onclick=toggleDrawer;$('navShow').onclick=showNavigation;$('voiceBtn').onclick=toggleVoice;
+$('mapMenuBtn').onclick=showNavigation;
+$('mapLocateBtn').onclick=()=>{if(currentPosition){map.setView([currentPosition.lat,currentPosition.lon],17,{animate:true});status('Centered on your location.')}else{startGPS()}};
+$('mapTrailsBtn').onclick=()=>{setAppMode('trails');showNavigation();setPanel('trails')};
+$('mapSearchBtn').onclick=mapSearch;
+$('mapSearch').addEventListener('keydown',e=>{if(e.key==='Enter')mapSearch()});
+syncMapModeUI();$('drawerClose').onclick=closeDrawer;$('drawerBackdrop').onclick=closeDrawer;
 document.querySelectorAll('[data-drawer-action]').forEach(b=>b.onclick=()=>drawerAction(b.dataset.drawerAction));
 $('mapThemeToggle').onclick=()=>setMapTheme(!darkMap);
 $('autoCenterToggle').onclick=()=>setAutoCenter(!autoCenterGPS);
