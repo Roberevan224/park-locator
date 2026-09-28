@@ -22,6 +22,7 @@
 .search-row{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:9px}.search-row button{white-space:nowrap}
 .result-list{max-height:180px;overflow:auto;margin-top:7px}.result-list button{width:100%;text-align:left;margin-top:5px;background:#102235}
 .mode-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:7px}.mode-row button.active{border-color:var(--blue);background:#12334a;color:#fff}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.profile-card{padding:9px;border:1px solid #2e485b;border-radius:11px;background:#0d2030;text-align:left}.profile-card.active{border-color:var(--green);box-shadow:0 0 0 1px #38ef7040}.profile-card b{display:block}.profile-card small{color:var(--muted)}.sync-line{display:flex;gap:7px;align-items:center}.sync-line button{flex:1}
 .modal{position:fixed;inset:0;z-index:3000;background:#0009;display:none;align-items:center;justify-content:center;padding:16px}.modal.show{display:flex}.card{width:min(430px,100%);background:#0a1723;border:1px solid #456174;border-radius:18px;padding:16px;box-shadow:0 20px 70px #000d}.card h2{margin:0 0 5px;font-size:20px}.card p{font-size:12px;color:var(--muted)}.card .close{float:right;width:auto;border:0;background:transparent;font-size:20px}.form{display:grid;gap:8px}.hint{font-size:10px;color:#90a5b5}.hidden{display:none!important}
 @media(max-width:600px){.app{top:7px;left:7px;width:calc(100vw - 14px);max-height:calc(100vh - 82px)}.content{padding:9px}.list{max-height:135px}.header{padding:10px}.logo{width:38px;height:38px}}
 </style>
@@ -29,7 +30,7 @@
 <body>
 <div id="map"></div>
 <section class="app">
-<header class="header"><img class="logo" src="/logo.svg"><div class="brand"><b>Trail Navigator USA</b><span>Explore • Navigate • Report • Discover</span></div><button id="accountBtn" class="account">Account</button></header>
+<header class="header"><img class="logo" src="/logo.svg"><div class="brand"><b>Trail Navigator USA</b><span>Explore • Navigate • Report • Discover</span></div><button id="loginBtn" class="account">Login</button><button id="syncBtn" class="account">↻ Sync</button><button id="accountBtn" class="account">Account</button></header>
 <div class="content">
 <div id="status" class="status">Starting Trail Navigator…</div>
 <div class="search-row"><input id="search" class="search" placeholder="Search a place or address…"><button id="searchBtn" class="primary">Go</button></div>
@@ -46,12 +47,13 @@
 <div id="panelNavigation" class="section hidden"><h3>Navigation</h3><div id="navDetails" class="hint">Search for a destination to build a route.</div></div>
 <div id="panelTrails" class="section hidden"><h3>Nearby trails</h3><div id="trailList" class="list"></div></div>
 <div id="panelReports" class="section hidden"><h3>Trail obstruction reports</h3><div id="reportList" class="list"></div></div>
-<div id="panelAccount" class="section hidden"><h3>Account</h3><div id="accountState"></div></div>
+<div id="panelAccount" class="section hidden"><h3>Account</h3><div id="accountState"></div><div id="profileSection" class="section hidden"><h3>Profiles</h3><div id="profileList" class="profile-grid"></div><div class="row"><input id="newProfileName" placeholder="New profile name"><button id="addProfile" class="primary">Add profile</button></div></div></div>
 </div>
 <nav class="bottom"><button id="navMap" class="active">🗺️ Map</button><button id="navTrails">🥾 Trails</button><button id="navReports">⚠ Reports</button><button id="navAccount">👤 Account</button></nav>
 </section>
 
-<div id="accountModal" class="modal"><div class="card"><button class="close" data-close="accountModal">×</button><h2>Trail Navigator Account</h2><p>Accounts sync your profile and obstruction reports across devices.</p><div class="form"><input id="displayName" placeholder="Display name"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><div class="row"><button id="signIn">Sign in</button><button id="signUp" class="primary">Create account</button></div><button id="signOut" class="danger hidden">Sign out</button><div id="authMsg" class="hint"></div></div></div></div>
+<div id="accountModal" class="modal"><div class="card"><button class="close" data-close="accountModal">×</button><h2>Trail Navigator Account</h2><p>Log in to sync this device and switch between multiple profiles on the same account.</p><div class="form"><input id="displayName" placeholder="Display name (new account)"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><div class="row"><button id="signIn">Login</button><button id="signUp" class="primary">Create account</button></div><div class="sync-line"><button id="modalSync">↻ Sync this device</button><button id="setupDeviceBtn">⚙ Device setup</button></div><button id="signOut" class="danger hidden">Sign out</button><div id="authMsg" class="hint"></div></div></div></div>
+<div id="deviceModal" class="modal"><div class="card"><button class="close" data-close="deviceModal">×</button><h2>Set up this device</h2><p>Give this device a name so it can be recognized when your account syncs.</p><div class="form"><input id="deviceName" placeholder="e.g. My iPhone, Chromebook, Car tablet"><div class="hint" id="deviceInfo"></div><button id="saveDevice" class="primary">Save device</button><button id="skipDevice">Not now</button></div></div></div>
 <div id="reportModal" class="modal"><div class="card"><button class="close" data-close="reportModal">×</button><h2>Report trail obstruction</h2><p>Your current GPS position is used for the report. Public report locations are rounded for privacy.</p><div class="form"><select id="obType"><option value="fallen-tree">Fallen tree</option><option value="flooding">Flooding</option><option value="rockfall">Rockfall</option><option value="washout">Washout / erosion</option><option value="closed-trail">Trail closed</option><option value="ice-snow">Ice / snow</option><option value="wildlife">Wildlife obstruction</option><option value="other">Other</option></select><textarea id="obDesc" maxlength="500" placeholder="What is blocking or affecting the trail?"></textarea><button id="submitReport" class="primary">Submit report</button><div id="reportMsg" class="hint"></div></div></div></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -59,7 +61,10 @@
 <script>
 const $=id=>document.getElementById(id),map=L.map('map',{zoomControl:true,preferCanvas:true,fadeAnimation:false}).setView([39.5,-98.35],5);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,maxNativeZoom:19,keepBuffer:4,updateWhenIdle:true,updateWhenZooming:false,attribution:'© OpenStreetMap contributors'}).addTo(map);
-let trailLayer=L.layerGroup().addTo(map),parkLayer=L.layerGroup().addTo(map),reportLayer=L.layerGroup().addTo(map),routeLayer=L.layerGroup().addTo(map),trailData=[],parkData=[],gpsMarker=null,accuracyCircle=null,watchId=null,currentPosition=null,supabaseClient=null,currentUser=null,lastTrailFetch='',lastParkFetch='',destination=null,routeData=null,routeMode='driving',navigationActive=false,lastRouteAt=0,geocodeBusy=false;
+let trailLayer=L.layerGroup().addTo(map),parkLayer=L.layerGroup().addTo(map),reportLayer=L.layerGroup().addTo(map),routeLayer=L.layerGroup().addTo(map),trailData=[],parkData=[],gpsMarker=null,accuracyCircle=null,watchId=null,currentPosition=null,supabaseClient=null,currentUser=null,lastTrailFetch='',lastParkFetch='',destination=null,routeData=null,routeMode='driving',navigationActive=false,lastRouteAt=0,geocodeBusy=false,accountProfiles=[],activeProfile=null;
+const DEVICE_KEY=localStorage.getItem('trailNavigatorDeviceKey')||crypto.randomUUID();
+localStorage.setItem('trailNavigatorDeviceKey',DEVICE_KEY);
+const DEVICE_NAME_KEY='trailNavigatorDeviceName';
 function status(t,c=''){ $('status').className='status '+c;$('status').textContent=t }
 function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function dist(a,b){const R=6371000,p=Math.PI/180,dLat=(b[1]-a[1])*p,dLon=(b[0]-a[0])*p,x=Math.sin(dLat/2)**2+Math.cos(a[1]*p)*Math.cos(b[1]*p)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
@@ -165,20 +170,99 @@ function startNavigation(){if(!destination){status('Search for a destination fir
 function stopNavigation(){navigationActive=false;routeData=null;routeLayer.clearLayers();$('routePanel').classList.add('hidden');status('Navigation stopped.')}
 function startGPS(){if(!navigator.geolocation){status('GPS is not available in this browser.','error');return}if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;$('gpsBtn').textContent='📍 Start GPS';status('GPS tracking stopped.','warn');return}$('gpsBtn').textContent='⏹ Stop GPS';status('Waiting for GPS…');watchId=navigator.geolocation.watchPosition(p=>{currentPosition={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};if(!gpsMarker)gpsMarker=L.marker([currentPosition.lat,currentPosition.lon],{icon:L.divIcon({className:'gpsdot',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);else gpsMarker.setLatLng([currentPosition.lat,currentPosition.lon]);if(!accuracyCircle)accuracyCircle=L.circle([currentPosition.lat,currentPosition.lon],{radius:currentPosition.accuracy,color:'#28a8ff',fillOpacity:.08,weight:1}).addTo(map);else accuracyCircle.setLatLng([currentPosition.lat,currentPosition.lon]).setRadius(currentPosition.accuracy);if(navigationActive){map.setView([currentPosition.lat,currentPosition.lon],Math.max(map.getZoom(),16),{animate:true});if(destination)calculateRoute();updateNextTurn()}else{const near=nearestTrail(currentPosition.lat,currentPosition.lon);status('GPS connected • ±'+Math.round(currentPosition.accuracy)+' m'+(near?' • '+near.name+' ('+near.distance+' m)':''))}},e=>status('GPS unavailable: '+e.message,'error'),{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
 async function setupAuth(){try{const r=await fetch('/api/config',{cache:'no-store'}),c=await r.json();if(c.supabaseUrl&&c.supabaseKey&&window.supabase){supabaseClient=window.supabase.createClient(c.supabaseUrl,c.supabaseKey);const s=await supabaseClient.auth.getSession();currentUser=s.data.session?.user||null;updateAuth();supabaseClient.auth.onAuthStateChange((event,session)=>{currentUser=session?.user||null;updateAuth()})}else status('Guest mode • add Supabase settings to enable accounts.','warn')}catch(e){status('Guest mode • account service is not configured yet.','warn')}}
-function updateAuth(){if(currentUser){$('accountBtn').textContent=(currentUser.user_metadata?.display_name||currentUser.email||'Account').slice(0,14);$('signIn').classList.add('hidden');$('signUp').classList.add('hidden');$('signOut').classList.remove('hidden');$('displayName').value=currentUser.user_metadata?.display_name||''}else{$('accountBtn').textContent='Account';$('signIn').classList.remove('hidden');$('signUp').classList.remove('hidden');$('signOut').classList.add('hidden')}}
-function renderAccount(){const el=$('accountState');el.innerHTML=currentUser?'<b>'+esc(currentUser.user_metadata?.display_name||'Trail Navigator')+'</b><small>'+esc(currentUser.email||'')+'</small><div class="hint">Signed in. Your obstruction reports can sync across devices.</div>':'<div class="hint">Guest mode. Sign in to submit and sync obstruction reports.</div>'}
-async function auth(mode){if(!supabaseClient){$('authMsg').textContent='Accounts are not configured on this deployment yet.';return}const email=$('email').value.trim(),password=$('password').value,display=$('displayName').value.trim()||'Trail Navigator';if(!email||!password){$('authMsg').textContent='Enter an email and password.';return}const r=mode==='signup'?await supabaseClient.auth.signUp({email,password,options:{data:{display_name:display}}}):await supabaseClient.auth.signInWithPassword({email,password});if(r.error){$('authMsg').textContent=r.error.message;return}$('authMsg').textContent=mode==='signup'?'Account created. Check your email if confirmation is enabled.':'Signed in.';setTimeout(()=>closeModal('accountModal'),700)}
+function updateAuth(){
+ if(currentUser){
+  const name=(activeProfile?.display_name||currentUser.user_metadata?.display_name||currentUser.email||'Account').slice(0,14);
+  $('accountBtn').textContent=name;$('loginBtn').textContent=name;$('signIn').classList.add('hidden');$('signUp').classList.add('hidden');$('signOut').classList.remove('hidden');
+  $('displayName').value=currentUser.user_metadata?.display_name||'';
+  loadProfiles();syncDevice(false);
+ }else{
+  $('accountBtn').textContent='Account';$('loginBtn').textContent='Login';$('signIn').classList.remove('hidden');$('signUp').classList.remove('hidden');$('signOut').classList.add('hidden');
+  $('profileSection').classList.add('hidden');
+ }
+}
+async function loadProfiles(){
+ if(!supabaseClient||!currentUser)return;
+ const {data,error}=await supabaseClient.from('account_profiles').select('id,display_name,avatar,created_at,updated_at').order('created_at',{ascending:true});
+ if(error)return;
+ accountProfiles=data||[];
+ const saved=localStorage.getItem('trailNavigatorActiveProfile');
+ activeProfile=accountProfiles.find(p=>p.id===saved)||accountProfiles[0]||null;
+ if(activeProfile)localStorage.setItem('trailNavigatorActiveProfile',activeProfile.id);
+ renderProfiles();renderAccount();
+}
+function renderProfiles(){
+ const el=$('profileList');if(!el)return;el.innerHTML='';
+ accountProfiles.forEach(p=>{const b=document.createElement('button');b.className='profile-card'+(activeProfile?.id===p.id?' active':'');b.innerHTML='<b>'+esc(p.avatar)+' '+esc(p.display_name)+'</b><small>Account profile</small>';b.onclick=()=>switchProfile(p.id);el.appendChild(b)});
+ $('profileSection').classList.toggle('hidden',!currentUser);
+}
+async function switchProfile(id){
+ const p=accountProfiles.find(x=>x.id===id);if(!p)return;
+ activeProfile=p;localStorage.setItem('trailNavigatorActiveProfile',id);renderProfiles();renderAccount();await syncDevice(true);status('Switched to '+p.display_name+'.');
+}
+function renderAccount(){
+ const el=$('accountState');
+ if(!currentUser){el.innerHTML='<div class="hint">You are using Trail Navigator as a guest. Log in to sync devices and use multiple profiles.</div>';return}
+ el.innerHTML='<b>'+esc(activeProfile?.avatar||'🧭')+' '+esc(activeProfile?.display_name||currentUser.email||'Trail Navigator')+'</b><small>'+esc(currentUser.email||'')+'</small><div class="hint">Logged in. Your account can have multiple profiles and connected devices.</div>';
+ renderProfiles();
+}
+async function syncDevice(showStatus=true){
+ if(!supabaseClient||!currentUser){if(showStatus)status('Log in to sync this device.','warn');return}
+ const deviceName=localStorage.getItem(DEVICE_NAME_KEY)||detectDeviceName();
+ const platform=navigator.userAgentData?.platform||navigator.platform||'Web';
+ const {error}=await supabaseClient.from('user_devices').upsert({account_id:currentUser.id,device_key:DEVICE_KEY,device_name:deviceName,platform,last_seen_at:new Date().toISOString()},{onConflict:'account_id,device_key'});
+ if(error){if(showStatus)status('Device sync failed.','error');return}
+ if(showStatus)status('Device synced • '+deviceName);
+}
+function detectDeviceName(){
+ const p=(navigator.userAgentData?.platform||navigator.platform||'').toLowerCase();
+ if(p.includes('iphone'))return 'iPhone';
+ if(p.includes('ipad'))return 'iPad';
+ if(p.includes('android'))return 'Android device';
+ if(p.includes('linux'))return 'Linux / Chromebook';
+ if(p.includes('win'))return 'Windows PC';
+ if(p.includes('mac'))return 'Mac';
+ return 'Web device';
+}
+function openDeviceSetup(){
+ const current=localStorage.getItem(DEVICE_NAME_KEY)||detectDeviceName();
+ $('deviceName').value=current;$('deviceInfo').textContent='Device ID: '+DEVICE_KEY.slice(0,8)+'…';
+ $('deviceModal').classList.add('show');
+}
+async function saveDevice(){
+ const name=$('deviceName').value.trim()||detectDeviceName();
+ localStorage.setItem(DEVICE_NAME_KEY,name);closeModal('deviceModal');
+ if(currentUser)await syncDevice(true);else status('Device saved locally. Log in to sync it.','warn');
+}
+async function addProfile(){
+ if(!currentUser||!supabaseClient)return;
+ const name=$('newProfileName').value.trim();if(!name){status('Enter a profile name.','warn');return}
+ const {data,error}=await supabaseClient.from('account_profiles').insert({account_id:currentUser.id,display_name:name,avatar:'🧭'}).select().single();
+ if(error){status('Could not create profile.','error');return}
+ $('newProfileName').value='';accountProfiles.push(data);activeProfile=data;localStorage.setItem('trailNavigatorActiveProfile',data.id);renderProfiles();renderAccount();status('Profile created: '+name);
+}
+async function auth(mode){
+ if(!supabaseClient){$('authMsg').textContent='Accounts are not configured on this deployment yet.';return}
+ const email=$('email').value.trim(),password=$('password').value,display=$('displayName').value.trim()||'Trail Navigator';
+ if(!email||!password){$('authMsg').textContent='Enter an email and password.';return}
+ const r=mode==='signup'?await supabaseClient.auth.signUp({email,password,options:{data:{display_name:display}}}):await supabaseClient.auth.signInWithPassword({email,password});
+ if(r.error){$('authMsg').textContent=r.error.message;return}
+ $('authMsg').textContent=mode==='signup'?'Account created. Check your email if confirmation is enabled.':'Logged in.';
+ setTimeout(()=>{closeModal('accountModal');if(mode==='signup')openDeviceSetup()},700)
+}
 function closeModal(id){$(id).classList.remove('show')}
 async function loadReports(){if(!supabaseClient){$('reportList').innerHTML='<div class="hint">Connect the account database to load reports.</div>';return}const b=map.getBounds(),lat=(b.getSouth()+b.getNorth())/2,lon=(b.getWest()+b.getEast())/2,span=Math.max(b.getNorth()-b.getSouth(),b.getEast()-b.getWest()),{data,error}=await supabaseClient.from('obstruction_reports').select('id,latitude,longitude,type,description,status,created_at').gte('latitude',lat-span).lte('latitude',lat+span).gte('longitude',lon-span).lte('longitude',lon+span).order('created_at',{ascending:false}).limit(100);if(error){$('reportList').innerHTML='<div class="hint">Reports could not be loaded.</div>';return}reportLayer.clearLayers();const el=$('reportList');el.innerHTML='';(data||[]).forEach(r=>{L.circleMarker([r.latitude,r.longitude],{radius:8,color:'#ff5c62',fillColor:'#ff5c62',fillOpacity:.85,weight:2}).bindPopup('<b>Trail obstruction</b><br>'+esc(r.type)+'<br>'+esc(r.description||'No description')+'<br><small>'+esc(r.status)+'</small>').addTo(reportLayer);const d=document.createElement('div');d.className='item';d.innerHTML='<b>'+esc(r.type)+'</b><small>'+esc(r.description||'No description')+' • '+esc(r.status)+'</small>';el.appendChild(d)});if(!data?.length)el.innerHTML='<div class="hint">No obstruction reports are mapped in this area.</div>'}
-async function submitReport(){if(!currentUser){$('reportMsg').textContent='Sign in first to submit an obstruction report.';return}if(!currentPosition){$('reportMsg').textContent='Start GPS first so the report can use your current trail position.';return}const type=$('obType').value,description=$('obDesc').value.trim(),lat=Math.round(currentPosition.lat*1000)/1000,lon=Math.round(currentPosition.lon*1000)/1000,{error}=await supabaseClient.from('obstruction_reports').insert({user_id:currentUser.id,latitude:lat,longitude:lon,type,description});if(error){$('reportMsg').textContent=error.message;return}$('reportMsg').textContent='Report submitted.';$('obDesc').value='';await loadReports();setTimeout(()=>closeModal('reportModal'),800)}
+async function submitReport(){if(!currentUser){$('reportMsg').textContent='Sign in first to submit an obstruction report.';return}if(!currentPosition){$('reportMsg').textContent='Start GPS first so the report can use your current trail position.';return}const type=$('obType').value,description=$('obDesc').value.trim(),lat=Math.round(currentPosition.lat*1000)/1000,lon=Math.round(currentPosition.lon*1000)/1000,{error}=await supabaseClient.from('obstruction_reports').insert({user_id:currentUser.id,profile_id:activeProfile?.id||null,latitude:lat,longitude:lon,type,description});if(error){$('reportMsg').textContent=error.message;return}$('reportMsg').textContent='Report submitted.';$('obDesc').value='';await loadReports();setTimeout(()=>closeModal('reportModal'),800)}
 map.on('moveend',()=>{if(map.getZoom()>=11)loadTrails();if(map.getZoom()>=9)loadParks();if(!$('panelReports').classList.contains('hidden'))loadReports()});
 $('parksBtn').onclick=()=>{if(map.hasLayer(parkLayer)){map.removeLayer(parkLayer);status('Park layer hidden.')}else{parkLayer.addTo(map);loadParks();status('Nationwide park/protected-area layer enabled.')}};
 $('gpsBtn').onclick=startGPS;$('centerBtn').onclick=()=>currentPosition&&map.setView([currentPosition.lat,currentPosition.lon],16);
 $('searchBtn').onclick=geocodeDestination;$('search').addEventListener('keydown',e=>{if(e.key==='Enter')geocodeDestination()});
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{routeMode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(destination&&currentPosition)calculateRoute()});
 $('startNav').onclick=startNavigation;$('stopNav').onclick=stopNavigation;$('trailBtn').onclick=()=>{setPanel('trails');loadTrails()};$('reportNav').onclick=()=>setPanel('reports');
+$('loginBtn').onclick=()=>$('accountModal').classList.add('show');$('syncBtn').onclick=()=>syncDevice(true);$('modalSync').onclick=()=>syncDevice(true);$('setupDeviceBtn').onclick=openDeviceSetup;$('saveDevice').onclick=saveDevice;$('skipDevice').onclick=()=>closeModal('deviceModal');$('addProfile').onclick=addProfile;
 $('reportBtn').onclick=()=>{if(!currentUser){$('accountModal').classList.add('show');$('authMsg').textContent='Sign in to report an obstruction.'}else $('reportModal').classList.add('show')};$('accountBtn').onclick=()=>$('accountModal').classList.add('show');$('signIn').onclick=()=>auth('signin');$('signUp').onclick=()=>auth('signup');$('signOut').onclick=async()=>{await supabaseClient?.auth.signOut();closeModal('accountModal')};$('submitReport').onclick=submitReport;
 $('navMap').onclick=()=>setPanel('map');$('navTrails').onclick=()=>setPanel('trails');$('navReports').onclick=()=>setPanel('reports');$('navAccount').onclick=()=>setPanel('account');document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
+if(!localStorage.getItem(DEVICE_NAME_KEY))setTimeout(openDeviceSetup,900);
 setupAuth();map.whenReady(()=>setTimeout(()=>{loadParks();loadTrails()},700));
 </script>
 </body></html>
