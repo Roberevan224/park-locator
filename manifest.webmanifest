@@ -1,0 +1,8 @@
+{
+  "name": "Missouri State Parks Map",
+  "short_name": "MO Parks",
+  "start_url": "./",
+  "display": "standalone",
+  "theme_color": "#111827",
+  "background_color": "#111827"
+}
