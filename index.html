@@ -16,6 +16,12 @@
 .search{margin-top:9px}input,select,textarea,button{font:inherit;border:1px solid #456174;border-radius:10px;background:#102235;color:var(--text);padding:10px}input,select,textarea{width:100%}textarea{min-height:82px;resize:vertical}button{cursor:pointer}button:hover{background:#183049}.primary{background:#1d8f4a;border-color:#35e879}.danger{background:#52212a;border-color:#a94351}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.row3{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:7px}.section{margin-top:10px}.section h3{font-size:12px;margin:0 0 6px;color:#dbe7ef}.list{max-height:190px;overflow:auto}.item{padding:9px 4px;border-bottom:1px solid #223747;font-size:12px}.item b{font-size:13px}.item small{display:block;color:var(--muted);margin-top:3px}.pill{display:inline-block;padding:2px 6px;border-radius:99px;background:#15334a;color:#bce4ff;font-size:10px}
 .bottom{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:#07131e}.bottom button{border:0;border-radius:0;background:transparent;padding:10px 4px;font-size:10px;color:#aebfcb}.bottom button.active{color:var(--green);background:#0d2530}.gpsdot{background:var(--blue);border:3px solid white;border-radius:50%;box-shadow:0 0 0 8px #28a8ff35}
+.route-panel{margin-top:9px;padding:10px;border:1px solid #31516a;border-radius:12px;background:#0b1d2c}
+.route-summary{display:grid;grid-template-columns:1fr 1fr;gap:7px}.route-summary b{font-size:15px}.route-summary small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.next-turn{margin-top:8px;padding:9px;border-radius:10px;background:#102b3c;border:1px solid #2a5168}.next-turn b{display:block;font-size:14px}.next-turn small{color:var(--muted)}
+.search-row{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:9px}.search-row button{white-space:nowrap}
+.result-list{max-height:180px;overflow:auto;margin-top:7px}.result-list button{width:100%;text-align:left;margin-top:5px;background:#102235}
+.mode-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:7px}.mode-row button.active{border-color:var(--blue);background:#12334a;color:#fff}
 .modal{position:fixed;inset:0;z-index:3000;background:#0009;display:none;align-items:center;justify-content:center;padding:16px}.modal.show{display:flex}.card{width:min(430px,100%);background:#0a1723;border:1px solid #456174;border-radius:18px;padding:16px;box-shadow:0 20px 70px #000d}.card h2{margin:0 0 5px;font-size:20px}.card p{font-size:12px;color:var(--muted)}.card .close{float:right;width:auto;border:0;background:transparent;font-size:20px}.form{display:grid;gap:8px}.hint{font-size:10px;color:#90a5b5}.hidden{display:none!important}
 @media(max-width:600px){.app{top:7px;left:7px;width:calc(100vw - 14px);max-height:calc(100vh - 82px)}.content{padding:9px}.list{max-height:135px}.header{padding:10px}.logo{width:38px;height:38px}}
 </style>
@@ -26,10 +32,18 @@
 <header class="header"><img class="logo" src="/logo.svg"><div class="brand"><b>Trail Navigator USA</b><span>Explore • Navigate • Report • Discover</span></div><button id="accountBtn" class="account">Account</button></header>
 <div class="content">
 <div id="status" class="status">Starting Trail Navigator…</div>
-<input id="search" class="search" placeholder="Search this area for trails…">
+<div class="search-row"><input id="search" class="search" placeholder="Search a place or address…"><button id="searchBtn" class="primary">Go</button></div>
+<div id="searchResults" class="result-list hidden"></div>
 <div class="row"><button id="gpsBtn">📍 Start GPS</button><button id="reportBtn" class="danger">⚠ Report obstruction</button></div>
+<div id="routePanel" class="route-panel hidden">
+  <div class="route-summary"><div><b id="routeDistance">—</b><small>distance</small></div><div><b id="routeEta">—</b><small>estimated time</small></div></div>
+  <div id="nextTurn" class="next-turn"><b>Choose a destination</b><small>Search for a place or address to start everyday navigation.</small></div>
+  <div class="mode-row"><button data-mode="driving" class="active">🚗 Drive</button><button data-mode="walking">🚶 Walk</button><button data-mode="cycling">🚲 Bike</button></div>
+  <div class="row"><button id="startNav" class="primary">Start navigation</button><button id="stopNav">Stop</button></div>
+</div>
 <div class="row3"><button id="centerBtn">Center</button><button id="trailBtn">Trails</button><button id="parksBtn">Parks</button><button id="reportNav">Reports</button></div>
-<div id="panelMap" class="section"><h3>Live map</h3><div class="hint">Trail lines load for the area you're viewing. Zoom in for detailed trail data.</div></div>
+<div id="panelMap" class="section"><h3>Live map</h3><div class="hint">Use search + Go for normal road navigation. GPS follows your position while navigation is active.</div></div>
+<div id="panelNavigation" class="section hidden"><h3>Navigation</h3><div id="navDetails" class="hint">Search for a destination to build a route.</div></div>
 <div id="panelTrails" class="section hidden"><h3>Nearby trails</h3><div id="trailList" class="list"></div></div>
 <div id="panelReports" class="section hidden"><h3>Trail obstruction reports</h3><div id="reportList" class="list"></div></div>
 <div id="panelAccount" class="section hidden"><h3>Account</h3><div id="accountState"></div></div>
@@ -45,12 +59,12 @@
 <script>
 const $=id=>document.getElementById(id),map=L.map('map',{zoomControl:true,preferCanvas:true,fadeAnimation:false}).setView([39.5,-98.35],5);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,maxNativeZoom:19,keepBuffer:4,updateWhenIdle:true,updateWhenZooming:false,attribution:'© OpenStreetMap contributors'}).addTo(map);
-let trailLayer=L.layerGroup().addTo(map),parkLayer=L.layerGroup().addTo(map),reportLayer=L.layerGroup().addTo(map),trailData=[],parkData=[],gpsMarker=null,accuracyCircle=null,watchId=null,currentPosition=null,supabaseClient=null,currentUser=null,lastTrailFetch='',lastParkFetch='';
+let trailLayer=L.layerGroup().addTo(map),parkLayer=L.layerGroup().addTo(map),reportLayer=L.layerGroup().addTo(map),routeLayer=L.layerGroup().addTo(map),trailData=[],parkData=[],gpsMarker=null,accuracyCircle=null,watchId=null,currentPosition=null,supabaseClient=null,currentUser=null,lastTrailFetch='',lastParkFetch='',destination=null,routeData=null,routeMode='driving',navigationActive=false,lastRouteAt=0,geocodeBusy=false;
 function status(t,c=''){ $('status').className='status '+c;$('status').textContent=t }
 function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function dist(a,b){const R=6371000,p=Math.PI/180,dLat=(b[1]-a[1])*p,dLon=(b[0]-a[0])*p,x=Math.sin(dLat/2)**2+Math.cos(a[1]*p)*Math.cos(b[1]*p)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
 function nearestTrail(lat,lon){let best=null,bestD=Infinity;for(const f of trailData){for(const c of f.geometry.coordinates){const d=dist([lon,lat],[c[1],c[0]]);if(d<bestD){bestD=d;best=f}}}return best?{name:best.properties.name,distance:Math.round(bestD)}:null}
-function setPanel(name){['panelMap','panelTrails','panelReports','panelAccount'].forEach(x=>$(x).classList.add('hidden'));['navMap','navTrails','navReports','navAccount'].forEach(x=>$(x).classList.remove('active'));const p={map:'panelMap',trails:'panelTrails',reports:'panelReports',account:'panelAccount'}[name],n={map:'navMap',trails:'navTrails',reports:'navReports',account:'navAccount'}[name];$(p).classList.remove('hidden');$(n).classList.add('active');if(name==='trails')renderTrailList();if(name==='reports')loadReports();if(name==='account')renderAccount()}
+function setPanel(name){['panelMap','panelNavigation','panelTrails','panelReports','panelAccount'].forEach(x=>$(x).classList.add('hidden'));['navMap','navTrails','navReports','navAccount'].forEach(x=>$(x).classList.remove('active'));const p={map:'panelMap',navigation:'panelNavigation',trails:'panelTrails',reports:'panelReports',account:'panelAccount'}[name],n={map:'navMap',trails:'navTrails',reports:'navReports',account:'navAccount'}[name];$(p).classList.remove('hidden');if(n)$(n).classList.add('active');if(name==='trails')renderTrailList();if(name==='reports')loadReports();if(name==='account')renderAccount();if(name==='navigation')renderNavigationDetails()}
 async function loadTrails(){if(map.getZoom()<11){status('Zoom in to load detailed trail lines. The base map still shows mapped trails.','warn');return}const b=map.getBounds(),bbox=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].join(',');if(lastTrailFetch===bbox)return;lastTrailFetch=bbox;status('Loading trails for this area…');try{const r=await fetch('/api/trails?bbox='+encodeURIComponent(bbox));if(!r.ok)throw Error();const d=await r.json();trailData=d.features||[];trailLayer.clearLayers();trailData.forEach(f=>L.geoJSON(f,{style:{color:'#38ef70',weight:3,opacity:.78}}).bindTooltip(esc(f.properties.name),{sticky:true}).addTo(trailLayer));status('Loaded '+trailData.length+' mapped trails in this area.');renderTrailList()}catch(e){status('Trail service is temporarily unavailable; the base map remains usable.','warn')}}
 async function loadParks(){
  if(map.getZoom()<9)return;
@@ -64,7 +78,92 @@ async function loadParks(){
  }catch(e){}
 }
 function renderTrailList(){const el=$('trailList');el.innerHTML='';trailData.slice(0,80).forEach(f=>{const d=document.createElement('div');d.className='item';d.innerHTML='<b>'+esc(f.properties.name)+'</b><small><span class="pill">'+esc(f.properties.highway)+'</span> '+esc(f.properties.surface||'')+'</small>';d.onclick=()=>{const c=f.geometry.coordinates[Math.floor(f.geometry.coordinates.length/2)];map.setView([c[1],c[0]],15)};el.appendChild(d)});if(!trailData.length)el.innerHTML='<div class="hint">Move to a trail area and zoom in to load nearby trail data.</div>'}
-function startGPS(){if(!navigator.geolocation){status('GPS is not available in this browser.','error');return}if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;$('gpsBtn').textContent='📍 Start GPS';status('GPS tracking stopped.','warn');return}$('gpsBtn').textContent='⏹ Stop GPS';status('Waiting for GPS…');watchId=navigator.geolocation.watchPosition(p=>{currentPosition={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};if(!gpsMarker)gpsMarker=L.marker([currentPosition.lat,currentPosition.lon],{icon:L.divIcon({className:'gpsdot',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);else gpsMarker.setLatLng([currentPosition.lat,currentPosition.lon]);if(!accuracyCircle)accuracyCircle=L.circle([currentPosition.lat,currentPosition.lon],{radius:currentPosition.accuracy,color:'#28a8ff',fillOpacity:.08,weight:1}).addTo(map);else accuracyCircle.setLatLng([currentPosition.lat,currentPosition.lon]).setRadius(currentPosition.accuracy);map.setView([currentPosition.lat,currentPosition.lon],Math.max(map.getZoom(),15),{animate:true});const near=nearestTrail(currentPosition.lat,currentPosition.lon);status('GPS connected • ±'+Math.round(currentPosition.accuracy)+' m'+(near?' • '+near.name+' ('+near.distance+' m)':''))},e=>status('GPS unavailable: '+e.message,'error'),{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
+function formatDistance(m){return m<1000?Math.round(m)+' m':(m/1609.344).toFixed(1)+' mi'}
+function formatDuration(s){const m=Math.round(s/60);if(m<60)return m+' min';const h=Math.floor(m/60),r=m%60;return h+' hr '+(r? r+' min':'')}
+function maneuverText(step){
+ const m=step?.maneuver||{},type=m.type||'',mod=m.modifier||'';
+ if(type==='arrive')return 'You have arrived';
+ if(type==='depart')return 'Head '+(mod||'forward');
+ if(type==='roundabout'||type==='rotary')return 'Enter '+(m.exit?('roundabout, take exit '+m.exit):'roundabout');
+ if(type==='merge')return 'Merge '+(mod||'');
+ if(type==='fork')return 'Keep '+(mod||'');
+ if(type==='on ramp')return 'Take the ramp';
+ if(type==='off ramp')return 'Take the exit';
+ if(type==='new name')return 'Continue';
+ if(type==='continue')return 'Continue '+(mod||'straight');
+ if(type==='end of road')return 'At the end of the road, turn '+(mod||'');
+ if(type==='turn')return 'Turn '+(mod||'');
+ return (type?type.replace(/_/g,' '):'Continue')+(mod?' '+mod:'');
+}
+function currentStep(){
+ if(!routeData?.routes?.[0])return null;
+ const steps=routeData.routes[0].legs?.flatMap(l=>l.steps||[])||[];
+ if(!steps.length)return null;
+ let best=steps[steps.length-1],bestD=Infinity;
+ if(currentPosition){
+  for(const s of steps){const loc=s.maneuver?.location;if(!loc)continue;const d=dist([currentPosition.lon,currentPosition.lat],[loc[0],loc[1]]);if(d<bestD&&d>8){bestD=d;best=s}}
+ }
+ return {step:best,distance:bestD};
+}
+function renderNavigationDetails(){
+ const el=$('navDetails');
+ if(!routeData?.routes?.[0]){el.innerHTML='<div class="hint">Search for a destination to build a route.</div>';return}
+ const r=routeData.routes[0];
+ el.innerHTML='<b>'+esc(destination?.name||'Destination')+'</b><small style="display:block;color:var(--muted);margin-top:4px">'+formatDistance(r.distance)+' • '+formatDuration(r.duration)+' • '+esc(routeMode)+'</small>';
+}
+function updateNextTurn(){
+ const box=$('nextTurn');
+ if(!routeData?.routes?.[0])return;
+ const x=currentStep();
+ if(!x){box.innerHTML='<b>Follow the route</b><small>Navigation is ready.</small>';return}
+ const s=x.step,n=s.name||s.ref||'the road',d=x.distance<Infinity?formatDistance(x.distance):'';
+ box.innerHTML='<b>'+esc(maneuverText(s))+'</b><small>'+esc(n)+(d?' • '+esc(d):'')+'</small>';
+}
+async function geocodeDestination(){
+ const q=$('search').value.trim();
+ if(q.length<3){status('Enter a place or address to navigate to.','warn');return}
+ if(geocodeBusy)return;
+ geocodeBusy=true;$('searchBtn').disabled=true;status('Finding destination…');
+ try{
+  const r=await fetch('/api/geocode?q='+encodeURIComponent(q),{cache:'no-store'});
+  if(!r.ok)throw Error();
+  const data=await r.json();const results=data.results||[];const box=$('searchResults');box.innerHTML='';
+  if(!results.length){box.classList.remove('hidden');box.innerHTML='<div class="hint">No U.S. destination found.</div>';return}
+  results.forEach(x=>{const b=document.createElement('button');b.textContent=x.display_name;b.onclick=()=>chooseDestination(x);box.appendChild(b)});
+  box.classList.remove('hidden');
+  if(results.length===1)chooseDestination(results[0]);
+ }catch(e){status('Destination search is temporarily unavailable.','error')}
+ finally{geocodeBusy=false;$('searchBtn').disabled=false}
+}
+function chooseDestination(x){
+ destination={lat:Number(x.lat),lon:Number(x.lon),name:x.display_name};
+ $('search').value=x.display_name;
+ $('searchResults').classList.add('hidden');
+ map.setView([destination.lat,destination.lon],16,{animate:true});
+ L.marker([destination.lat,destination.lon]).addTo(routeLayer).bindPopup('<b>Destination</b><br>'+esc(destination.name)).openPopup();
+ setPanel('navigation');
+ if(currentPosition)calculateRoute();else{status('Destination selected • start GPS to calculate the route.','warn');startGPS()}
+}
+async function calculateRoute(){
+ if(!destination||!currentPosition)return;
+ const now=Date.now();if(now-lastRouteAt<2500)return;lastRouteAt=now;
+ status('Calculating '+routeMode+' route…');
+ try{
+  const u='/api/route?from='+encodeURIComponent(currentPosition.lon+','+currentPosition.lat)+'&to='+encodeURIComponent(destination.lon+','+destination.lat)+'&mode='+encodeURIComponent(routeMode);
+  const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error();
+  const d=await r.json();if(d.code!=='Ok'||!d.routes?.length)throw Error();
+  routeData=d;routeLayer.clearLayers();
+  L.geoJSON(d.routes[0].geometry,{style:{color:'#28a8ff',weight:7,opacity:.88}}).addTo(routeLayer);
+  L.marker([destination.lat,destination.lon],{title:'Destination'}).addTo(routeLayer).bindPopup('<b>Destination</b><br>'+esc(destination.name));
+  const coords=d.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+  if(coords.length)map.fitBounds(L.latLngBounds(coords),{padding:[70,70]});
+  $('routePanel').classList.remove('hidden');renderNavigationDetails();updateNextTurn();
+  status('Route ready • '+formatDistance(d.routes[0].distance)+' • '+formatDuration(d.routes[0].duration));
+ }catch(e){routeData=null;routeLayer.clearLayers();status('No route could be calculated for that destination.','error');renderNavigationDetails()}
+}
+function startNavigation(){if(!destination){status('Search for a destination first.','warn');return}navigationActive=true;if(watchId===null)startGPS();else calculateRoute();status('Navigation active • GPS will keep the route centered.')}
+function stopNavigation(){navigationActive=false;routeData=null;routeLayer.clearLayers();$('routePanel').classList.add('hidden');status('Navigation stopped.')}
+function startGPS(){if(!navigator.geolocation){status('GPS is not available in this browser.','error');return}if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;$('gpsBtn').textContent='📍 Start GPS';status('GPS tracking stopped.','warn');return}$('gpsBtn').textContent='⏹ Stop GPS';status('Waiting for GPS…');watchId=navigator.geolocation.watchPosition(p=>{currentPosition={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};if(!gpsMarker)gpsMarker=L.marker([currentPosition.lat,currentPosition.lon],{icon:L.divIcon({className:'gpsdot',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);else gpsMarker.setLatLng([currentPosition.lat,currentPosition.lon]);if(!accuracyCircle)accuracyCircle=L.circle([currentPosition.lat,currentPosition.lon],{radius:currentPosition.accuracy,color:'#28a8ff',fillOpacity:.08,weight:1}).addTo(map);else accuracyCircle.setLatLng([currentPosition.lat,currentPosition.lon]).setRadius(currentPosition.accuracy);if(navigationActive){map.setView([currentPosition.lat,currentPosition.lon],Math.max(map.getZoom(),16),{animate:true});if(destination)calculateRoute();updateNextTurn()}else{const near=nearestTrail(currentPosition.lat,currentPosition.lon);status('GPS connected • ±'+Math.round(currentPosition.accuracy)+' m'+(near?' • '+near.name+' ('+near.distance+' m)':''))}},e=>status('GPS unavailable: '+e.message,'error'),{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
 async function setupAuth(){try{const r=await fetch('/api/config',{cache:'no-store'}),c=await r.json();if(c.supabaseUrl&&c.supabaseKey&&window.supabase){supabaseClient=window.supabase.createClient(c.supabaseUrl,c.supabaseKey);const s=await supabaseClient.auth.getSession();currentUser=s.data.session?.user||null;updateAuth();supabaseClient.auth.onAuthStateChange((event,session)=>{currentUser=session?.user||null;updateAuth()})}else status('Guest mode • add Supabase settings to enable accounts.','warn')}catch(e){status('Guest mode • account service is not configured yet.','warn')}}
 function updateAuth(){if(currentUser){$('accountBtn').textContent=(currentUser.user_metadata?.display_name||currentUser.email||'Account').slice(0,14);$('signIn').classList.add('hidden');$('signUp').classList.add('hidden');$('signOut').classList.remove('hidden');$('displayName').value=currentUser.user_metadata?.display_name||''}else{$('accountBtn').textContent='Account';$('signIn').classList.remove('hidden');$('signUp').classList.remove('hidden');$('signOut').classList.add('hidden')}}
 function renderAccount(){const el=$('accountState');el.innerHTML=currentUser?'<b>'+esc(currentUser.user_metadata?.display_name||'Trail Navigator')+'</b><small>'+esc(currentUser.email||'')+'</small><div class="hint">Signed in. Your obstruction reports can sync across devices.</div>':'<div class="hint">Guest mode. Sign in to submit and sync obstruction reports.</div>'}
@@ -74,7 +173,10 @@ async function loadReports(){if(!supabaseClient){$('reportList').innerHTML='<div
 async function submitReport(){if(!currentUser){$('reportMsg').textContent='Sign in first to submit an obstruction report.';return}if(!currentPosition){$('reportMsg').textContent='Start GPS first so the report can use your current trail position.';return}const type=$('obType').value,description=$('obDesc').value.trim(),lat=Math.round(currentPosition.lat*1000)/1000,lon=Math.round(currentPosition.lon*1000)/1000,{error}=await supabaseClient.from('obstruction_reports').insert({user_id:currentUser.id,latitude:lat,longitude:lon,type,description});if(error){$('reportMsg').textContent=error.message;return}$('reportMsg').textContent='Report submitted.';$('obDesc').value='';await loadReports();setTimeout(()=>closeModal('reportModal'),800)}
 map.on('moveend',()=>{if(map.getZoom()>=11)loadTrails();if(map.getZoom()>=9)loadParks();if(!$('panelReports').classList.contains('hidden'))loadReports()});
 $('parksBtn').onclick=()=>{if(map.hasLayer(parkLayer)){map.removeLayer(parkLayer);status('Park layer hidden.')}else{parkLayer.addTo(map);loadParks();status('Nationwide park/protected-area layer enabled.')}};
-$('gpsBtn').onclick=startGPS;$('centerBtn').onclick=()=>currentPosition&&map.setView([currentPosition.lat,currentPosition.lon],16);$('trailBtn').onclick=()=>{setPanel('trails');loadTrails()};$('reportNav').onclick=()=>setPanel('reports');
+$('gpsBtn').onclick=startGPS;$('centerBtn').onclick=()=>currentPosition&&map.setView([currentPosition.lat,currentPosition.lon],16);
+$('searchBtn').onclick=geocodeDestination;$('search').addEventListener('keydown',e=>{if(e.key==='Enter')geocodeDestination()});
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{routeMode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(destination&&currentPosition)calculateRoute()});
+$('startNav').onclick=startNavigation;$('stopNav').onclick=stopNavigation;$('trailBtn').onclick=()=>{setPanel('trails');loadTrails()};$('reportNav').onclick=()=>setPanel('reports');
 $('reportBtn').onclick=()=>{if(!currentUser){$('accountModal').classList.add('show');$('authMsg').textContent='Sign in to report an obstruction.'}else $('reportModal').classList.add('show')};$('accountBtn').onclick=()=>$('accountModal').classList.add('show');$('signIn').onclick=()=>auth('signin');$('signUp').onclick=()=>auth('signup');$('signOut').onclick=async()=>{await supabaseClient?.auth.signOut();closeModal('accountModal')};$('submitReport').onclick=submitReport;
 $('navMap').onclick=()=>setPanel('map');$('navTrails').onclick=()=>setPanel('trails');$('navReports').onclick=()=>setPanel('reports');$('navAccount').onclick=()=>setPanel('account');document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
 setupAuth();map.whenReady(()=>setTimeout(()=>{loadParks();loadTrails()},700));
